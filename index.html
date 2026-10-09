@@ -399,13 +399,13 @@ body.modo-celular .w-right{display:none}
         <ol class="howto">
           <li><b>1</b><span>Aponte a câmera do seu celular para o código.</span></li>
           <li><b>2</b><span>Preencha o formulário e envie seu currículo.</span></li>
-          <li><b>3</b><span>Mostre a tela de confirmação para a equipe Fortes.</span></li>
+          <li><b>3</b><span>Depois de enviar, toque em "Já enviei" para girar a roleta.</span></li>
         </ol>
         <div class="qr-box"><div id="qr"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAggAAAIIAQAAAAAjhyvOAAAEz0lEQVR42u2dT46zOBTEq0JL9I7cgEhzEPpmkJuFm8ANYBckkpqFbUzPtxqNRqLp8qrphJ+iF/vx/pQdCv9xXGCCCSaYYMLRCZDW7W9qKCRJT7QS6jfq7QKUpAfQSN12RyPZkiaclNBIkjQBAHoyzvuxUP8BAFiI6g0AzYr+E6jCDastacKZCQtJ5n/ePwFAg9gsZCVWwkzygr6UngBAkjdb0oSfQKgXtlJXiiQbaQCamZqJKlws5KctacLZCR/fL8e/1H+sWNgKgC71oL4SIEAXgChkS5rwMwilJAFAvaJZgVK8gjdqeLF94v4JspDeKbYHJGmwJU04M6EnSfIKjB/o8wNAvAFYqJmagLHQPbw4hxs+bEkTzkmA/hgr2lAYqrUrmIbyzyM9XPKwJU04IOHFL+DO5MD7kPBegfGCMVU4NZIk2xXNzA7gVST5ZUuacF5v/wSwq+e3W0csjjKkDqkjpgmoFNtntqQJR53V7QRN1ACgUJeneAhbAOn9LabJ17akCWclhNpP/Ua9xusOIC/AK3YCYg5Mpsr/XKh3FGTCgQkLOwBzkDKEys1I1G+g0ANoZ/JK9Rc0qdmFKi2Bf/8ZvvxdmPAjct5SHSC9oiDhXolXYGQalWK5s/9AM1MSr7akCafODlY0T6BSVIE+ik36xtj0akNOXL/RbG+uJK1WgZpw+EpOqNwU6spdET9omSVpYFwC7YT4Tue8Jpw4CgJaCfMFKKQVWNjNjFP/sYRKf1oKDwCVNFHDyzmvCYeNYXKYEmdteGVAquzkEXJgJcVaiGHCTU/kRLiVumovayvThoA8qnfsBPi7MOGQUVB24Fpz5T9P/a4Mlf73boqHJeDY3oQTR0GlupmsX7wVeryonBAUCttaeGXMDrCQtWxJE44fBX0fseKZvHvsZ2U1wzYaCTkRjoFOUEdrCs3hNanbJqReQsCHtrKfFyYcdl3E2s87av7bvbdP2QLzOkkbBKx/MOHM6yKWQUN20GzPj00HhFIxx81j8row4dA5r7YW1YA4q3fF/aBuizHLGkOkfASKLWnCib19pe8OvhLq1BHTM6QK4cCfferg2N6EsxIKPRZqZN7kCwAzMZK3QvdP3CuRF9TvvC3SuiATDk14kUHdNpO3V1S3xUrOSH4tTN4esSmMSpgL73M34dzePm3ZTce3tTO7Tf0mKcr8x0tSu81Mm+BtSROOm/O2EwCmNkCZKjUD0ORKTtBwSppctzfh1+S88YCGQpK6ausE7Hc6PpAq/9Y2m3D2dZHUbEwdsNDnHfbPj1gLSmq4LJ22JU045qwOaeym+dc/zuqJUVCY1an55X6WCb9gXYRRrzEHTteS8j53/vFme3sTDpvzbmNImv4c0yh79zca6bHF9u7zmvArvP122k8Zcl7FwL8DchSEcpcge12YcF7C7lddguY/RkHiDWieaJ9BChfaYUE0NKcDEW1JEw7p7ZsnkEX4yaFrYFYzpLPcvsX29vYm/Jp1EWtBcdNvEWtBMVsIajeFbS/OeU34EYR6RbOwA+4kasUDGtJZPS+S/Pp2moMtacJ5CdumreDg+Yl2AkYy/sQLiUrq08+c3r2f14RfEAWlwVwj7bZzUZrtsPNhi4K02/FlS5pwNAJlO5hgggkm/L+EvwFNSmpbr56g+wAAAABJRU5ErkJggg==" alt="QR Code do formulário de currículos da Fortes" width="220" height="220"></div><p class="qr-note">Formulário de currículos da Fortes.</p></div>
       </div>
       <div class="staff" id="staffBox">
-        <p>Para a equipe Fortes: confira no celular do estudante a mensagem de resposta registrada.</p>
-        <button class="btn btn-green" id="btnCurriculo">Currículo confirmado</button>
+        <p>Enviou o seu currículo pelo formulário? Agora é só girar a roleta.</p>
+        <button class="btn btn-green" id="btnCurriculo">Já enviei, girar a roleta</button>
       </div>
       <div class="wait hidden" id="waitBox"><i class="sp" aria-hidden="true"></i><div><b>Depois de enviar, mostre a confirmação à equipe Fortes</b><span>Informe o seu código <strong id="waitCode"></strong>. Assim que a equipe confirmar o envio, a roleta abre aqui automaticamente.</span></div></div>
       <div class="actions"><button class="btn btn-ghost" data-go="s-cadastro">Voltar</button></div>
@@ -837,13 +837,7 @@ $('#btnDinamica').addEventListener('click',async()=>{
   st.rec=novoRegistro(r.data,true,v.id);
   if(isEst()){
     st.rec.faixa='estudante';st.rec.paradoEm='Envio do currículo (não confirmado)';
-    if(MODO==='celular'){st.rec.aguardandoLiberacao=true;$('#waitCode').textContent='...'}
     saveAll();renderQR();show('s-estudante');
-    if(MODO==='celular'){
-      try{const d=await salvarAgora(st.rec);st.rec.codigo=d.codigo;$('#waitCode').textContent=d.codigo||''}
-      catch(e){$('#waitCode').textContent='(sem conexão no momento)'}
-      esperarLiberacao();
-    }
   }
   else{saveAll();st.qi=0;st.order=makeOrder();show('s-quiz');renderStep(1)}
 });
@@ -972,7 +966,7 @@ function renderQR(){
   else el.innerHTML='<p style="font-size:13px;color:#6b6878;word-break:break-all">'+FORM_URL+'</p>';
 }
 $('#btnCurriculo').addEventListener('click',()=>{
-  st.rec.curriculoConfirmado=true;st.rec.temperatura='Estudante';st.rec.paradoEm='Currículo confirmado, não girou a roleta';saveAll();
+  st.rec.curriculoConfirmado=true;st.rec.temperatura='Estudante';st.rec.paradoEm='Currículo enviado, não girou a roleta';saveAll();
   prepareRoleta('Currículo recebido. Obrigado pelo interesse em fazer parte da Fortes!');
 });
 
@@ -1145,10 +1139,8 @@ function linkCelular(){const b=baseApp();return b?b+'?modo=celular':''}
 function linkTablet(){return location.href.split('#')[0].split('?')[0]}
 if(MODO==='celular'){
   $('#qrCel').classList.add('hidden');
-  $('#staffBox').classList.add('hidden');
-  $('#waitBox').classList.remove('hidden');
   $('.qr-box').classList.add('hidden');
-  $('.howto').innerHTML='<li><b>1</b><span>Toque no botão abaixo para abrir o formulário.<br><a class="btn btn-primary btn-form" target="_blank" rel="noopener" href="'+FORM_URL+'">Abrir formulário</a></span></li><li><b>2</b><span>Preencha o formulário e envie seu currículo.</span></li><li><b>3</b><span>Mostre a tela de confirmação de envio para a equipe Fortes.</span></li>';
+  $('.howto').innerHTML='<li><b>1</b><span>Toque no botão abaixo para abrir o formulário.<br><a class="btn btn-primary btn-form" target="_blank" rel="noopener" href="'+FORM_URL+'">Abrir formulário</a></span></li><li><b>2</b><span>Preencha o formulário e envie seu currículo.</span></li><li><b>3</b><span>Depois de enviar, toque em "Já enviei" para girar a roleta.</span></li>';
 } else {
   const box=$('#qrCelBox');
   if(window.QRCode&&linkCelular()) new QRCode(box,{text:linkCelular(),width:88,height:88,colorDark:'#2D2E2D',colorLight:'#ffffff'});
