@@ -1731,7 +1731,8 @@ let current='s-login';
 function show(id){$$('.screen').forEach(s=>s.classList.toggle('active',s.id===id));current=id;document.body.classList.remove('immersive');document.body.classList.add('admin-on');document.body.classList.toggle('no-sorteio',id==='s-sorteio');window.scrollTo(0,0)}
 
 /* ===== Sorteio Fortes Pay: cada dia sorteia entre quem girou a roleta naquele dia ===== */
-const DIAS_EVENTO=['2026-10-16','2026-10-17'];
+/* O sorteio acontece somente no dia 17/10, entre quem girou a roleta nesse dia */
+const DIAS_EVENTO=['2026-10-17'];
 let stDia=null, stGirando=false;
 const fmtDia=d=>d.split('-').reverse().slice(0,2).join('/');
 function diaDoSorteio(r){return diaDe(r.concluidoEm||r.criadoEm)}
