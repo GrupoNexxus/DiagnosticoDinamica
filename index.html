@@ -646,11 +646,11 @@ const LEVEL_INFO = {
 /* Probabilidades (%) por perfil, na ordem: Bronze, Prata, Ouro, Especial, Não foi dessa vez.
    Cada linha soma 100. Se alguma linha for alterada e não somar 100, o app ajusta a proporção automaticamente. */
 const ODDS = {
-  estudante:[50,24,5,1,20],
-  baixa:[50,30,9,1,10],     // pontuação 2 a 5
-  media:[40,35,15,5,5],     // pontuação 6 a 9
-  alta:[20,35,35,10,0],     // pontuação 10 a 13
-  altissima:[10,25,50,15,0] // pontuação 14 a 17
+  estudante:[60,30,9,1,0],
+  baixa:[30,40,25,5,0],     // pontuação 2 a 5
+  media:[20,35,35,10,0],    // pontuação 6 a 9
+  alta:[15,35,40,10,0],     // pontuação 10 a 13
+  altissima:[0,30,40,30,0]  // pontuação 14 a 17
 };
 const FAIXA_LABEL = {estudante:'Estudante',baixa:'Baixa',media:'Média',alta:'Alta',altissima:'Altíssima'};
 function faixaDe(p){return p<=5?'baixa':p<=9?'media':p<=13?'alta':'altissima'}
@@ -760,42 +760,69 @@ function hoje(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth(
 function diaDe(iso){try{const d=new Date(iso);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}catch(e){return ''}}
 function freshStock(){return {data:hoje(),itens:DEFAULT_ITENS.map(i=>Object.assign({},i,{qtd:i.dia,sobra:0}))}}
 let records = [];
-let stock = null;
+let stock = load('diagFortes:estoqueLocal',null);
 if(!stock||!Array.isArray(stock.itens)) stock=freshStock();
 /* ===== Banco de dados (Supabase) ===== */
 const SUPABASE_URL='https://hefixhdiwvapsitszfff.supabase.co';
 const SUPABASE_KEY='sb_publishable_KNJicALBUmDA7rN0HvGXAQ_6eJX8Ean';
-const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
-const K_FILA='diagFortes:filaEnvio', K_MEU='diagFortes:meuRegistro';
+const sb=window.supabase?window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false}}):null;
+const K_FILA='diagFortes:filaEnvio', K_MEU='diagFortes:meuRegistro', K_GIROS='diagFortes:girosOffline', K_FALHA='diagFortes:falhasEnvio', K_EST='diagFortes:estoqueLocal', K_TELS='diagFortes:telsGiraram';
 /* Cada alteração entra numa fila guardada no próprio aparelho e é enviada ao banco.
    Se a internet cair, nada se perde: a fila é reenviada sozinha quando a conexão voltar. */
-let filaEnvio=load(K_FILA,{}), enviando=false;
+let filaEnvio=load(K_FILA,{}), girosOff=load(K_GIROS,{}), telsGiraram=load(K_TELS,{}), enviando=false, conexaoOk=true;
+/* Toda chamada ao banco tem tempo limite: com internet instável, o app não fica travado esperando */
+async function chamar(nome,args,ms){
+  if(!sb){conexaoOk=false;return {error:{message:'sem_biblioteca'},status:0,rede:true}}
+  const ctl=new AbortController(), t=setTimeout(()=>ctl.abort(),ms||7000);
+  let r;
+  try{r=await sb.rpc(nome,args||{}).abortSignal(ctl.signal)}
+  catch(e){r={error:{message:String(e)},status:0}}
+  finally{clearTimeout(t)}
+  r.rede=!!r.error&&(!r.status||r.status>=500||r.status===408||r.status===429);
+  conexaoOk=!r.rede; return r;
+}
 function novoId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
 /* Monta o que vai para o banco. Em cadastro recuperado, o nome completo já está salvo e não é reenviado */
 function payload(rec){const p=JSON.parse(JSON.stringify(rec));if(p._semNome)delete p.nome;Object.keys(p).forEach(k=>{if(k[0]==='_')delete p[k]});return p}
 function putRec(rec){filaEnvio[rec.id]=payload(rec);persist(K_FILA,filaEnvio);updateNet();enviarFila()}
 function saveAll(){if(typeof st!=='undefined'&&st&&st.rec)putRec(st.rec)}
+function pendTotal(){return Object.keys(filaEnvio).length+Object.keys(girosOff).length}
 async function enviarFila(){
-  if(enviando||!Object.keys(filaEnvio).length) return; enviando=true;
+  if(enviando||!pendTotal()) return; enviando=true;
   try{
     for(const id of Object.keys(filaEnvio)){
       const p=filaEnvio[id];
-      const {error}=await sb.rpc('salvar_lead',{p});
-      if(error&&!error.code) throw error;
+      const r=await chamar('salvar_lead',{p});
+      if(r.rede) throw r.error;
+      if(r.error){const f=load(K_FALHA,{});f[id]={p,erro:r.error.message||'',em:new Date().toISOString()};persist(K_FALHA,f)}
       if(filaEnvio[id]===p){delete filaEnvio[id];persist(K_FILA,filaEnvio)}
+    }
+    /* Giros feitos sem internet: enviados depois que o cadastro da pessoa já está no banco */
+    for(const id of Object.keys(girosOff)){
+      if(filaEnvio[id]) continue;
+      const r=await chamar('registrar_giro_offline',girosOff[id]);
+      if(r.rede) throw r.error;
+      if(r.error||(r.data&&r.data.erro==='nao_encontrado')) continue;
+      delete girosOff[id];persist(K_GIROS,girosOff);
     }
   }catch(e){}finally{enviando=false;updateNet()}
 }
-async function salvarAgora(rec){const {data,error}=await sb.rpc('salvar_lead',{p:payload(rec)});if(error)throw error;return data||{}}
-async function verificarTelefone(tel){try{const {data,error}=await sb.rpc('verificar_telefone',{p_tel:tel});if(error)throw error;return data||{}}catch(e){return {}}}
-async function statusLead(id){try{const {data,error}=await sb.rpc('status_lead',{p_id:id});if(error)throw error;return data}catch(e){return null}}
+async function salvarAgora(rec){const r=await chamar('salvar_lead',{p:payload(rec)});if(r.error)throw r;return r.data||{}}
+async function verificarTelefone(tel){const r=await chamar('verificar_telefone',{p_tel:tel},4000);return (!r.error&&r.data)||{}}
+async function statusLead(id){const r=await chamar('status_lead',{p_id:id},4000);return r.error?null:r.data}
 async function carregarEstoque(){
-  try{const {data,error}=await sb.rpc('estoque_publico');if(error)throw error;
-    if(Array.isArray(data)&&data.length) stock={data:hoje(),itens:data.map(i=>({id:i.id,nivel:i.nivel,nome:i.nome,qtd:i.qtd,dia:0,sobra:0}))};
-  }catch(e){}
+  const r=await chamar('estoque_publico',{},4000);
+  if(!r.error&&Array.isArray(r.data)&&r.data.length){
+    stock={data:hoje(),itens:r.data.map(i=>({id:i.id,nivel:i.nivel,nome:i.nome,qtd:i.qtd,dia:0,sobra:0}))};
+    /* Desconta os giros offline que ainda não chegaram ao banco */
+    Object.values(girosOff).forEach(g=>{const it=stock.itens.find(i=>i.id===g.p_item);if(it)it.qtd=Math.max(0,it.qtd-1)});
+    persist(K_EST,stock);
+  }
   return stock;
 }
 setInterval(enviarFila,8000); window.addEventListener('online',enviarFila);
+/* Evita recarregar a página sem internet ou com dados ainda não enviados */
+window.addEventListener('beforeunload',e=>{if(pendTotal()||!navigator.onLine){e.preventDefault();e.returnValue=''}});
 /* Na virada do dia, a reposição diária é SOMADA ao que sobrou do dia anterior */
 function checkDay(){}
 stock.itens.forEach(i=>{if(i.sobra==null)i.sobra=0});
@@ -837,9 +864,9 @@ function armFinal(){clearTimeout(idleT);if(MODO==='celular')return;idleT=setTime
 function touch(){if(finalOn) armFinal()}
 ['pointerdown','keydown'].forEach(ev=>document.addEventListener(ev,touch));
 function updateNet(){
-  const on=navigator.onLine, n=Object.keys(filaEnvio).length;
+  const on=navigator.onLine&&conexaoOk, n=pendTotal();
   $('#status').classList.toggle('off',!on||n>0);
-  $('#statusTxt').textContent=!on?'Sem internet. Dados guardados neste aparelho':n?('Enviando '+n+(n>1?' registros':' registro')):'Online';
+  $('#statusTxt').textContent=!on?('Sem conexão. Dados guardados neste aparelho'+(n?' ('+n+' pendente'+(n>1?'s':'')+')':'')):n?('Enviando '+n+(n>1?' registros':' registro')):'Online';
 }
 window.addEventListener('online',updateNet);window.addEventListener('offline',updateNet);updateNet();
 const reduceMotion=()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -903,7 +930,7 @@ async function buscarCadastro(){
   if(tel.length<10||tel===telBuscado) return;
   telBuscado=tel;
   let d=null;
-  try{const r=await sb.rpc('buscar_cadastro',{p_tel:tel});if(!r.error)d=r.data}catch(e){}
+  const r=await chamar('buscar_cadastro',{p_tel:tel},3000);if(!r.error)d=r.data;
   if(tel!==$('#fTel').value.replace(/\D/g,'')||!d||!d.encontrado) return;
   achadoPend=d;
   const a=$('#achado'); a.classList.remove('hidden','ok');
@@ -968,7 +995,7 @@ $('#btnDinamica').addEventListener('click',async()=>{
   const r=readCadastro(); if(r.err){$('#errCad').textContent=r.err;return}
   const bt=$('#btnDinamica'); if(bt.disabled) return; bt.disabled=true;
   const v=await verificarTelefone(r.data.telefone); bt.disabled=false;
-  if(v.participou){
+  if(v.participou||telsGiraram[r.data.telefone]){
     $('#errCad').textContent='Este telefone já participou da dinâmica. Cada pessoa pode girar a roleta uma vez.';return;
   }
   $('#errCad').textContent='';
@@ -1147,6 +1174,17 @@ function pickItem(lv){
 }
 /* O brinde é sorteado e reservado pelo banco (função sortear_brinde), garantindo o estoque entre vários aparelhos */
 function award(){}
+/* Sem conexão: sorteia com o estoque guardado no aparelho, desconta localmente e guarda o giro para enviar depois */
+function girarOffline(){
+  const lv=pickLevel(st.rec.faixa), it=lv==='nada'?null:pickItem(lv);
+  let brinde;
+  if(it){it.qtd=Math.max(0,it.qtd-1);persist(K_EST,stock);brinde={nivel:it.nivel,itemId:it.id,nome:it.nome}}
+  else brinde={nivel:'nada',nome:'Não foi dessa vez'};
+  const quando=new Date().toISOString();
+  girosOff[st.rec.id]={p_id:st.rec.id,p_item:it?it.id:null,p_nivel:brinde.nivel,p_quando:quando};
+  persist(K_GIROS,girosOff);
+  return {brinde,codigo:null,entrega:it?{status:'entregue',em:quando,por:'Tablet do stand (sem internet)'}:null};
+}
 $('#btnSpin').addEventListener('click',async()=>{
   if(spinning) return;
   spinning=true;$('#btnSpin').disabled=true;updateRestart();
@@ -1156,13 +1194,17 @@ $('#btnSpin').addEventListener('click',async()=>{
   let res;
   try{
     await salvarAgora(st.rec);
-    const r=await sb.rpc('sortear_brinde',{p_id:st.rec.id,p_nivel:pickLevel(st.rec.faixa),p_modo:MODO});
-    if(r.error) throw r.error; res=r.data||{};
-  }catch(e){alert('Sem conexão com a internet no momento. Aguarde alguns segundos e toque em "Girar a roleta" novamente.');liberar();return}
+    const r=await chamar('sortear_brinde',{p_id:st.rec.id,p_nivel:pickLevel(st.rec.faixa),p_modo:MODO});
+    if(r.error) throw r; res=r.data||{};
+  }catch(e){
+    if(e&&e.rede){res=girarOffline();updateNet()}
+    else{alert('Não foi possível girar a roleta agora. Aguarde alguns segundos e toque em "Girar a roleta" novamente.');liberar();return}
+  }
   if(res.erro==='ja_participou'){alert('Este telefone já participou da dinâmica. Cada pessoa pode girar a roleta uma vez.');liberar();resetAll();return}
   if(res.erro==='curriculo_pendente'){alert('O envio do currículo ainda não foi confirmado pela equipe Fortes.');liberar();return}
   if(!res.brinde){alert('Não foi possível girar a roleta agora. Tente novamente.');liberar();return}
   Object.assign(st.rec,{brinde:res.brinde,codigo:res.codigo||null,entrega:res.entrega||null});
+  telsGiraram[st.rec.telefone]=1; persist(K_TELS,telsGiraram);
   const level=res.brinde.nivel;
   const idxs=SLICES.map((s,i)=>s===level?i:-1).filter(i=>i>=0);
   const idx=idxs[Math.floor(Math.random()*idxs.length)];
@@ -1322,11 +1364,11 @@ const LEVEL_INFO = {
 /* Probabilidades (%) por perfil, na ordem: Bronze, Prata, Ouro, Especial, Não foi dessa vez.
    Cada linha soma 100. Se alguma linha for alterada e não somar 100, o app ajusta a proporção automaticamente. */
 const ODDS = {
-  estudante:[50,24,5,1,20],
-  baixa:[50,30,9,1,10],     // pontuação 2 a 5
-  media:[40,35,15,5,5],     // pontuação 6 a 9
-  alta:[20,35,35,10,0],     // pontuação 10 a 13
-  altissima:[10,25,50,15,0] // pontuação 14 a 17
+  estudante:[60,30,9,1,0],
+  baixa:[30,40,25,5,0],     // pontuação 2 a 5
+  media:[20,35,35,10,0],    // pontuação 6 a 9
+  alta:[15,35,40,10,0],     // pontuação 10 a 13
+  altissima:[0,30,40,30,0]  // pontuação 14 a 17
 };
 const FAIXA_LABEL = {estudante:'Estudante',baixa:'Baixa',media:'Média',alta:'Alta',altissima:'Altíssima'};
 function faixaDe(p){return p<=5?'baixa':p<=9?'media':p<=13?'alta':'altissima'}
@@ -1658,7 +1700,11 @@ function aguardando(){return records.filter(r=>r.aguardandoLiberacao&&!r.curricu
 function entregaTxt(r){
   if(!r.brinde||r.brinde.nivel==='nada') return '';
   if(r.entrega&&r.entrega.status==='pendente') return 'Aguardando retirada';
-  return 'Entregue'+(r.entrega&&r.entrega.em?' em '+fmtHora(r.entrega.em):'');
+  let t='Entregue'+(r.entrega&&r.entrega.em?' em '+fmtHora(r.entrega.em):'');
+  if(r.giroOffline) t+=' (sem internet)';
+  if(r.estoqueSemSaldo) t+='. Atenção: item já estava zerado no banco';
+  if(r.telefoneRepetido) t+='. Atenção: telefone já tinha participado';
+  return t;
 }
 function retiradaTag(r){
   if(!r.brinde||r.brinde.nivel==='nada') return '';
